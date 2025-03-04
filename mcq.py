@@ -1,20 +1,23 @@
 import streamlit as st
 from PyPDF2 import PdfReader
-import google.generativeai as genai
-
-# Set up Gemini API
-genai.configure(api_key="AIzaSyC1meCPDpOcegRFfjK0egpdI9NRBsAjjrs")  # Replace with your Gemini API key
+from transformers import pipeline
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
+    """
+    Extracts text from a PDF file.
+    """
     reader = PdfReader(pdf_file)
     text = ""
     for page in reader.pages:
         text += page.extract_text()
     return text
 
-# Function to generate MCQs using Gemini
+# Function to generate MCQs using Hugging Face Transformers
 def generate_mcqs(text, num_questions=5):
+    """
+    Generates multiple-choice questions (MCQs) from the given text using a pre-trained model.
+    """
     prompt = f"""
     Generate {num_questions} multiple-choice questions (MCQs) based on the following text:
     
@@ -31,28 +34,35 @@ def generate_mcqs(text, num_questions=5):
     
     Repeat for all questions.
     """
-    model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content(prompt)
-    return response.text
+    # Load the text generation pipeline
+    mcq_pipeline = pipeline("text2text-generation", model="t5-small")
+    # Generate MCQs
+    response = mcq_pipeline(prompt, max_length=512)
+    return response[0]['generated_text']
 
 # Streamlit App
-st.title("MCQ Generator from PDF")
-st.write("Upload a PDF file, and we'll generate MCQs for you!")
+def main():
+    st.title("MCQ Generator from PDF")
+    st.write("Upload a PDF file, and we'll generate MCQs for you!")
 
-# File upload
-uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
+    # File upload
+    uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
 
-if uploaded_file is not None:
-    # Extract text from PDF
-    text = extract_text_from_pdf(uploaded_file)
-    st.write("Text extracted from PDF successfully!")
+    if uploaded_file is not None:
+        # Extract text from PDF
+        text = extract_text_from_pdf(uploaded_file)
+        st.write("Text extracted from PDF successfully!")
 
-    # Number of questions
-    num_questions = st.slider("Number of questions", min_value=1, max_value=10, value=5)
+        # Number of questions
+        num_questions = st.slider("Number of questions", min_value=1, max_value=10, value=5)
 
-    # Generate MCQs
-    if st.button("Generate MCQs"):
-        st.write("Generating MCQs...")
-        mcqs = generate_mcqs(text, num_questions)
-        st.write("### Generated MCQs:")
-        st.write(mcqs)
+        # Generate MCQs
+        if st.button("Generate MCQs"):
+            st.write("Generating MCQs...")
+            mcqs = generate_mcqs(text, num_questions)
+            st.write("### Generated MCQs:")
+            st.write(mcqs)
+
+# Run the app
+if __name__ == "__main__":
+    main()
